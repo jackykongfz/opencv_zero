@@ -1,3 +1,8 @@
+//<open a jpg picture>
+
+
+
+
 
 #include"highgui.h"
 #include"stdio.h"
