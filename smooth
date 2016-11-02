@@ -1,0 +1,26 @@
+#include "cv.h"
+#include "highgui.h"
+
+main()
+{
+	cvNamedWindow("smooth_in", 0);
+	cvNamedWindow("smooth_out", 0);
+
+	IplImage*img = cvLoadImage("C:\\ps素材\\3.jpg",0);
+
+	cvShowImage("smooth_in", img);
+
+	IplImage*out = cvCreateImage(
+		cvGetSize(img),//当前图像结构的大小
+		IPL_DEPTH_8U,//像素点的数据类型，每个通道8位
+		3);//3个通道
+
+	cvSmooth(img, out, CV_GAUSSIAN, 11, 11,11,11);
+	cvShowImage("smooth_out", out);
+
+	cvReleaseImage(&out);
+	cvReleaseImage(&img);
+	cvWaitKey(0);
+
+	cvDestroyAllWindows;
+}
