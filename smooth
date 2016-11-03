@@ -1,26 +1,33 @@
 #include "cv.h"
 #include "highgui.h"
-
-main()
+#include "stdio.h"
+int main(int argc, char**argv)
 {
-	cvNamedWindow("smooth_in", 0);
-	cvNamedWindow("smooth_out", 0);
+	cvNamedWindow("smooth_in", 1);
+	cvNamedWindow("smooth_out", 1);
 
-	IplImage*img = cvLoadImage("C:\\ps素材\\3.jpg",0);
+	IplImage* img = cvLoadImage("C:\\ps素材\\4.jpg", 1);
 
 	cvShowImage("smooth_in", img);
+	if (!img)
+	{
+		printf("Could not load image file");
+		exit(0);
+	}
 
-	IplImage*out = cvCreateImage(
+	IplImage* out = 0;
+		out = cvCreateImage(
 		cvGetSize(img),//当前图像结构的大小
-		IPL_DEPTH_8U,//像素点的数据类型，每个通道8位
-		3);//3个通道
+		IPL_DEPTH_16S,//像素点的数据类型，每个通道8位
+		8);//3个通道
 
-	cvSmooth(img, out, CV_GAUSSIAN, 11, 11,11,11);
+	cvSmooth(img, out, CV_GAUSSIAN, 3, 3, 0, 0);
 	cvShowImage("smooth_out", out);
 
 	cvReleaseImage(&out);
 	cvReleaseImage(&img);
 	cvWaitKey(0);
 
-	cvDestroyAllWindows;
+	cvDestroyWindow("smooth_in");
+	cvDestroyWindow("smooth_out");
 }
