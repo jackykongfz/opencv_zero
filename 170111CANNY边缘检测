@@ -1,0 +1,17 @@
+#include<opencv2\opencv.hpp>
+#include<opencv2/imgproc/imgproc.hpp>
+using namespace cv;
+
+int main()
+{
+	Mat Origin = imread("11.1.jpg");
+	Mat edge, grayImage;
+	imshow("origin", Origin);
+	cvtColor(Origin, grayImage, CV_BGR2GRAY);
+	blur(grayImage, edge, Size(3, 3));
+	Canny(edge, edge, 3, 9, 3);
+	imshow("after", edge);
+	waitKey(0);
+	return 0;
+
+}
