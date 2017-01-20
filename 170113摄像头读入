@@ -1,0 +1,15 @@
+#include<opencv2\opencv.hpp>
+using namespace cv;
+
+int main()
+{
+	VideoCapture capture(0);
+	while (1)
+	{
+		Mat frame;
+		capture >> frame;
+		imshow("video", frame);
+		waitKey(0);
+	}
+	return 0;
+}//需要狂按enter键，你可以自己试试加个循环
