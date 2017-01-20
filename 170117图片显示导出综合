@@ -1,0 +1,47 @@
+#include<opencv2/core/core.hpp>
+#include<opencv2/highgui/highgui.hpp>
+#include<opencv2\opencv.hpp>
+
+using namespace cv;
+
+int main()
+{
+	//千万注意图片尺寸，超出窗口大小的图片是直接读取错误的
+	//会导致内存溢出，你根本不知道发生了什么错误
+	//建议多玩玩这个程序，操控下图片内存
+	
+	Mat Firstpicture = imread("3.jpg", 199);
+	Mat Secondpicture = imread("4.jpg");
+
+	namedWindow("originpicture1");
+	imshow("originpicture1", Firstpicture);
+
+	namedWindow("originpicture2");
+	imshow("originpicture2", Secondpicture);
+
+	Mat imageROI;
+
+	//imageROI = Firstpicture(Rect(100, 100, Secondpicture.cols, Secondpicture.rows));
+
+	imageROI = Firstpicture(Range(100, 100 + Secondpicture.rows), Range(100, 100 + Secondpicture.cols));
+	 
+	imshow("imageROI", imageROI);
+	addWeighted(imageROI, 1, Secondpicture, 1, 0.0, imageROI);
+	
+	//这个函数里第二个和第四个参数分别是第一张图和第二张图的透明度
+	
+	namedWindow("change");
+	imshow("change", imageROI);
+	
+	
+	//做翻转图片时的测试
+	//Mat result;
+	//flip(Firstpicture, result, 1);
+	//namedWindow("chang");
+	//cvSaveImage("result.jpg", &(IplImage(result)));
+	
+
+	waitKey(0);
+	destroyAllWindows;
+	return 0;
+}
