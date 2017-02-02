@@ -1,0 +1,155 @@
+#include<opencv2\opencv.hpp>
+#include<opencv2/imgproc/imgproc.hpp>
+#include<iostream>
+#include<opencv2\highgui\highgui.hpp>
+
+using namespace cv;
+using namespace std;
+
+Mat g_srcImage, g_dstImage, g_grayImage, g_maskImage;
+int g_nFillMode = 1;//漫水填充的模式
+int g_nLowDifference = 20, g_nHighDifference = 20;//负差最大值，正差最大值
+int g_nConnectivity = 4;//表示floodfill函数标识符低八位的连通值
+int g_bIsColor = true;//是否为彩色图的标识符布尔值
+bool g_bUseMask = false;//是否显示掩膜窗口的布尔值
+int g_nNewMaskVal = 255;//新的重新绘制的像素值
+
+//鼠标消息onMouse的回调函数
+static void onMouse(int event, int x, int y, int, void*)
+{
+	if (event != EVENT_LBUTTONDOWN)
+		return;
+
+	//调用floodFill函数之前的参数准备部分
+	Point seed = Point(x, y);
+	int LowDifference = g_nFillMode == 0 ? 0 : g_nLowDifference;//空范围的漫水填充，此值设为0，否则设为全局的g_nlowdifference
+	int UpDifference = g_nFillMode == 0 ? 0 : g_nHighDifference;
+
+	int flags = g_nConnectivity + (g_nNewMaskVal << 8) + (g_nFillMode == 1 ? FLOODFILL_FIXED_RANGE : 0);
+
+	//随机生成bgr值
+	int b = (unsigned)theRNG() & 255;
+	int g = (unsigned)theRNG() & 255;
+	int r = (unsigned)theRNG() & 255;
+	Rect ccomp;//定义重绘区域最小边界矩形区域
+
+	Scalar newVal = g_bIsColor ? Scalar(b, g, r) : Scalar(r*0.299 + g*0.587 + b*0.114);
+	//在重绘区域像素的新值，若是彩色图模式，取SCALAR(B,G,R)，若是灰色图模式，取scalar(....)
+
+	Mat dst = g_bIsColor ? g_dstImage : g_grayImage;
+	int area;
+
+	//正式调用floodfill函数
+	if (g_bUseMask)
+	{
+		threshold(g_maskImage, g_maskImage, 1, 128, THRESH_BINARY);//设置临界值
+
+		area = floodFill(dst, g_maskImage, seed, newVal, &ccomp, Scalar(LowDifference, LowDifference, LowDifference),
+			Scalar(UpDifference, UpDifference, UpDifference), flags);
+		imshow("mask", g_maskImage);
+	}
+	else
+	{
+		area = floodFill(dst, seed, newVal, &ccomp, Scalar(LowDifference, LowDifference, LowDifference),
+			Scalar(UpDifference, UpDifference, UpDifference), flags);
+	}
+	imshow("效果图", dst);
+	cout << area << "个像素被重绘\n";
+}
+
+//主函数
+int main()
+{
+	g_srcImage = imread("3.jpg");
+	if (!g_srcImage.data){ printf("imread failed"); };
+
+	g_srcImage.copyTo(g_dstImage);
+	cvtColor(g_srcImage, g_grayImage, COLOR_BGR2GRAY);//转化三通道的IMAGE0到灰度图
+	g_maskImage.create(g_srcImage.rows + 2, g_srcImage.cols + 2, CV_8UC1);
+
+	namedWindow("效果图", WINDOW_AUTOSIZE);
+
+	createTrackbar("负差最大值", "效果图", &g_nLowDifference, 255, 0);
+	createTrackbar("正差最大值", "效果图", &g_nHighDifference, 255, 0);
+	setMouseCallback("效果图", onMouse, 0);
+
+	while (1)
+	{
+		imshow("效果图", g_bIsColor ? g_dstImage : g_grayImage);
+
+		//获取键盘按键
+		int c = waitKey(0);
+		if ((c & 255) == 27)
+		{
+			cout << "程序退出\n" << endl;
+			break;
+		}
+		switch ((char)c)
+		{
+		
+		case'1':
+			if (g_bIsColor)
+			{
+				cout << "键盘1被按下，切换彩色/灰度模式，当前操作为将彩色模式切换为灰度模式\n";
+				cvtColor(g_srcImage, g_grayImage, COLOR_BGR2GRAY);
+				g_maskImage = Scalar::all(0);//将所有mask元素设为0
+				g_bIsColor = false;
+			}
+			else
+			{
+				cout << "键盘1被按下，切换彩色/灰度模式，当前操作为将灰色模式切换为彩度模式\n";
+				g_srcImage.copyTo(g_dstImage);
+				g_maskImage = Scalar::all(0);//将所有mask元素设为0
+				g_bIsColor = true;
+			}
+			break;
+		
+		case'2':
+			if (g_bUseMask)
+			{
+				destroyWindow("mask");
+				g_bUseMask = false;
+			}
+			else{
+				namedWindow("mask", 0);
+				g_maskImage = Scalar::all(0);
+				imshow("mask", g_maskImage);
+				g_bUseMask = true;
+			}
+			break;
+
+		case'3':
+			cout << "恢复原始图像\n";
+			g_srcImage.copyTo(g_dstImage);
+			cvtColor(g_dstImage, g_grayImage, COLOR_BGR2GRAY);
+			g_maskImage = Scalar::all(0);
+			break;
+
+		case'4':
+			cout << "4,使用空范围的漫水填充\n";
+			g_nFillMode = 0;
+			break;
+
+		case'5':
+			cout << "5,使用渐变、固定范围的漫水填充\n";
+			g_nFillMode = 1;
+			break;
+
+		case'6':
+			cout << "6,使用渐变、浮动范围的漫水填充\n";
+			g_nFillMode = 2;
+			break;
+
+		case'7':
+			cout << "7,操作标志符的低八位使用4位的连接模式\n";
+			g_nConnectivity = 4;
+			break;
+
+		case'8':
+			cout << "8,使用8位连接模式\n";
+			g_nConnectivity = 8;
+			break;
+		default:printf("CASE 错误");
+		}
+	}
+}
