@@ -1,0 +1,89 @@
+#include<opencv2\opencv.hpp>
+#include<opencv2\core\core.hpp>
+#include<highgui\highgui.hpp>
+#include<opencv2\imgproc\imgproc.hpp>
+
+using namespace cv;
+
+int g_boxfilterValue=3;
+int g_blurfilerValue=3;
+int g_gaussianValue=3;
+int g_medianValue = 3;
+int g_bilateralValue = 25;
+Mat srcImage;
+Mat dstImage;
+
+static void Boxfilter(int ,void*)
+{
+	if (g_boxfilterValue <= 1){ g_boxfilterValue = 1; };//防止当拉到最左边时程序崩溃
+	boxFilter(srcImage, dstImage, -1, Size(g_boxfilterValue, g_boxfilterValue),Point(-1,-1));
+	imshow("方格滤波", dstImage);
+}
+
+static void Blurfilter(int ,void*)
+{
+	if (g_blurfilerValue <= 1){ g_blurfilerValue = 1; };
+	blur(srcImage, dstImage, Size(g_blurfilerValue, g_blurfilerValue));
+	imshow("均值滤波", dstImage);
+}
+
+static void Gaussianfilter(int ,void*)
+{
+	if (g_gaussianValue <= 1){ g_gaussianValue = 1; };
+	if (g_gaussianValue % 2 == 0){ g_gaussianValue = g_gaussianValue + 1; };
+	GaussianBlur(srcImage, dstImage, Size(g_gaussianValue, g_gaussianValue), 0, 0);
+	imshow("高斯滤波", dstImage);
+}
+
+static void on_medianBlur(int, void*)
+{
+	if (g_medianValue <= 1){ g_medianValue = 1; };
+	if (g_medianValue % 2 == 0){ g_medianValue = g_medianValue + 1; };
+	medianBlur(srcImage, dstImage, g_medianValue);
+	imshow("中值滤波", dstImage);
+}
+
+static void on_bilateralfilter(int, void*)
+{
+	bilateralFilter(srcImage, dstImage, g_bilateralValue, g_bilateralValue * 2, g_bilateralValue / 2);
+	imshow("双边滤波", dstImage);
+}
+
+int main()
+{
+	srcImage = imread("1.jpg");
+	if (!srcImage.data){ printf("input picture failed"); }
+	dstImage=srcImage.clone();
+	
+	namedWindow("原图");
+	namedWindow("方格滤波");
+	namedWindow("均值滤波");
+	namedWindow("高斯滤波");
+	namedWindow("中值滤波");
+	namedWindow("双边滤波");
+
+	imshow("原图", srcImage);
+	
+	createTrackbar("内核值", "方格滤波", &g_boxfilterValue, 40, Boxfilter);
+	//Boxfilter(g_boxfilterValue,0);
+	imshow("方格滤波", dstImage);
+
+	createTrackbar("内核值", "均值滤波", &g_blurfilerValue, 40, Blurfilter);
+	Blurfilter(g_blurfilerValue, 0);
+	imshow("均值滤波", dstImage);
+
+	createTrackbar("内核值", "高斯滤波", &g_gaussianValue, 40, Gaussianfilter);
+	Gaussianfilter(g_gaussianValue, 0);
+	imshow("高斯滤波", dstImage);
+
+	createTrackbar("内核值", "中值滤波", &g_medianValue, 40, on_medianBlur);
+	on_medianBlur(g_medianValue, 0);
+	imshow("中值滤波", dstImage);
+
+	createTrackbar("内核值", "双边滤波", &g_bilateralValue, 40, on_bilateralfilter);
+	on_bilateralfilter(g_bilateralValue, 0);
+	imshow("双边滤波", dstImage);
+
+	waitKey(0);
+	return 0;
+}
