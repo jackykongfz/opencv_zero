@@ -1,0 +1,31 @@
+#include<opencv2\opencv.hpp>
+#include<opencv2\core.hpp>
+
+using namespace cv;
+
+bool ROI_AddImage()
+{
+	Mat srcImage = imread("3.jpg");
+	Mat logoImage = imread("4.jpg");
+	if (!srcImage.data) { printf("3.jpg fail to open"); };
+	if (!logoImage.data){ printf("4.jpg fail to open"); };
+
+	Mat imageROI = srcImage(Range(200, 200+logoImage.rows), Range(100, 100+logoImage.cols));
+
+	Mat mask = imread("4.jpg", 199);                                        //注意掩膜书上写的必须是灰度图，但是我试了试，不一定是灰度图也可以，而且下面的copyto也可以不用掩膜直接用LOGOIMAGE没问题
+
+	logoImage.copyTo(imageROI, mask);                                     //这个地方特别注意，试着用多几次
+	
+	imshow("混合", srcImage);
+	
+	printf("logoImage.rows is   %d\n", logoImage.rows);
+	printf("logoImage.cols is %d\n", logoImage.cols);
+	return true;
+}
+
+int main()
+{
+	ROI_AddImage();
+	waitKey(0);
+
+}
