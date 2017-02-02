@@ -1,0 +1,50 @@
+#include<opencv2/opencv.hpp>
+#include<opencv2/imgproc/imgproc.hpp>
+#include<opencv2/highgui/highgui.hpp>
+#include<iostream>
+
+using namespace std;
+using namespace cv;
+
+int main()
+{
+	Mat g_srcImage, g_dstImage, g_tempImage;
+
+	g_srcImage = imread("1.jpg");
+	namedWindow("程序窗口", WINDOW_AUTOSIZE);
+	imshow("程序窗口", g_srcImage);
+
+	g_tempImage = g_srcImage;
+	g_dstImage = g_tempImage;
+
+	int key = 0;
+	while (1)
+	{
+		key = waitKey(0);
+
+		switch (key)
+		{
+		case'w':
+			pyrDown(g_tempImage, g_tempImage, Size(g_tempImage.cols / 2, g_tempImage.rows / 2));
+			printf("w,pyr放大\n");
+			break;
+		case's':
+			pyrUp(g_tempImage, g_tempImage, Size(g_tempImage.cols * 2, g_tempImage.rows * 2));
+			printf("s,pyr缩小\n");
+			break;
+		case'a':
+			resize(g_tempImage, g_tempImage, Size(g_tempImage.cols / 2, g_tempImage.rows / 2));
+			printf("a,resize缩小\n");
+			break;
+		case'd':
+			resize(g_tempImage, g_tempImage, Size(g_tempImage.cols * 2, g_tempImage.rows * 2));
+			printf("d,resize 放大\n");
+			break;
+		default:printf("循环出错");
+			break;
+		}
+		g_dstImage = g_tempImage;
+		imshow("程序窗口", g_dstImage);
+	}
+	return 0;
+}
