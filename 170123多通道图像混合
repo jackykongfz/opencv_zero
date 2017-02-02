@@ -1,0 +1,38 @@
+#include<opencv2\opencv.hpp>
+#include<opencv2/core/core.hpp>
+#include<opencv2/highgui/highgui.hpp>
+#include<iostream>
+
+using namespace std;
+using namespace cv;
+
+bool MultiChannelBlending()
+{
+	Mat srcImage = imread("3.jpg");
+	vector<Mat> channels;
+	Mat logoImage = imread("4.jpg",0);
+	if (!srcImage.data){ printf("1 failed"); };
+	if (!logoImage.data){ printf("2 failed"); };
+
+	split(srcImage, channels);
+
+	Mat imageBlueChannel = channels.at(0);//imageBlueChannel改变的话CHANNELS也会改变！
+
+	addWeighted(imageBlueChannel(Rect(200, 300, logoImage.cols, logoImage.rows)), 1, logoImage, 1, 0, 
+		imageBlueChannel(Rect(200, 300, logoImage.cols, logoImage.rows)));
+
+	merge(channels, srcImage);
+
+	imshow("blue channel rect", imageBlueChannel(Rect(200, 300, logoImage.cols, logoImage.rows)));
+	imshow("logo", logoImage);
+	imshow("blue channel", imageBlueChannel);
+	imshow("mixture", srcImage);
+	return 0;
+}
+
+int main()
+{
+	MultiChannelBlending();
+	waitKey(0);
+	return 0;
+}
