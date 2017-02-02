@@ -1,0 +1,146 @@
+#include<opencv2\opencv.hpp>
+#include<opencv2/highgui/highgui.hpp>
+#include<opencv2\imgproc\imgproc.hpp>
+#include<iostream>
+
+using namespace std;
+using namespace cv;
+
+int g_coreshape = MORPH_RECT;
+int g_MaxNum = 10;
+int g_erodeValue = 0;
+int g_openValue = 0;
+int g_tophatValue = 0;
+int g_gradientValue = 10;
+
+Mat srcImage;
+Mat dstImage;
+
+
+static void on_ErodeDilate(int, void*)
+{
+	int offset = g_erodeValue - g_MaxNum;
+	int AbsValue = abs(offset);
+	
+	Mat element = getStructuringElement(g_coreshape, Size(AbsValue * 2 + 1, AbsValue * 2 + 1));
+
+	if (offset < 0)
+	{	
+		morphologyEx(srcImage, dstImage, MORPH_ERODE, element);
+	}
+	else
+	{
+		morphologyEx(srcImage, dstImage, MORPH_DILATE, element);
+	}
+
+	imshow("膨胀/腐蚀", dstImage);
+}
+
+static void on_TopBlackHat(int, void*)
+{
+	int offset = g_tophatValue - g_MaxNum;
+	int AbsValue = abs(offset);
+
+	Mat element = getStructuringElement(g_coreshape, Size(AbsValue * 2 + 1, AbsValue * 2 + 1));
+
+	if (offset < 0)
+	{
+		morphologyEx(srcImage, dstImage, MORPH_TOPHAT, element);
+	}
+	else
+	{
+		morphologyEx(srcImage, dstImage, MORPH_BLACKHAT, element);
+	}
+
+	imshow("顶帽/黑帽", dstImage);
+}
+
+static void on_OpenClose(int, void*)
+{
+	int offset = g_openValue - g_MaxNum;
+	int AbsValue = abs(offset);
+
+	Mat element = getStructuringElement(g_coreshape, Size(AbsValue * 2 + 1, AbsValue * 2 + 1));
+
+	if (offset < 0)
+	{
+		morphologyEx(srcImage, dstImage, MORPH_OPEN, element);
+	}
+	else
+	{
+		morphologyEx(srcImage, dstImage, MORPH_CLOSE, element);
+	}
+
+	imshow("开/闭运算", dstImage);
+}
+
+static void on_Gradient(int, void*)
+{
+	int offset = g_openValue - g_MaxNum;
+	int AbsValue = abs(offset);
+	Mat temp;
+
+	Mat element = getStructuringElement(g_coreshape, Size(AbsValue * 2 + 1, AbsValue * 2 + 1));
+
+
+		morphologyEx(srcImage, dstImage, MORPH_DILATE, element);
+		morphologyEx(srcImage, temp, MORPH_ERODE, element);
+		dstImage = dstImage - temp;
+
+
+	imshow("形态学梯度", dstImage);
+}
+
+int main()
+{
+	srcImage = imread("11.1.jpg");
+	if (!srcImage.data){ printf("imread failed"); };
+
+	imshow("原图", srcImage);
+
+	namedWindow("膨胀/腐蚀");
+	namedWindow("开/闭运算");
+	namedWindow("顶帽/黑帽");
+	namedWindow("形态学梯度");
+		cout << "Please input shape of element\n"
+			<< "1 is rectangular\n"
+			<< "2 is ellispe\n"
+			<< "3 is cross\n"
+			<< "p or Esc close the window\n" << endl;		
+		char c;
+		cin >> c;
+		/*	if ((char)c == 'q' || (char)c == 27)
+		{
+			
+		};*/
+		if ((char)c == '1')
+		{
+			g_coreshape = MORPH_RECT;
+		};
+		if ((char)c == '2')
+		{
+			g_coreshape = MORPH_ELLIPSE;
+		};
+		if ((char)c == '3')
+		{
+			g_coreshape = MORPH_CROSS;
+		};
+		cout << "c is" << c<< endl;
+		
+	createTrackbar("迭代值", "膨胀/腐蚀", &g_erodeValue, g_MaxNum * 2 + 1, on_ErodeDilate);
+	createTrackbar("迭代值", "开/闭运算", &g_openValue, g_MaxNum * 2 + 1, on_OpenClose);
+	createTrackbar("迭代值", "顶帽/黑帽", &g_tophatValue, g_MaxNum * 2 + 1, on_TopBlackHat);
+	createTrackbar("迭代值", "形态学梯度", &g_gradientValue, g_MaxNum * 2 + 1, on_Gradient);
+
+
+		on_ErodeDilate(g_erodeValue, 0);
+		on_OpenClose(g_openValue, 0);
+		on_TopBlackHat(g_tophatValue, 0);
+		on_Gradient(g_gradientValue, 0);
+
+		waitKey(0);
+
+
+
+
+}
