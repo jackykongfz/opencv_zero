@@ -1,0 +1,32 @@
+#include<opencv2\opencv.hpp>
+#include<opencv2/imgproc/imgproc.hpp>
+#include<opencv2/highgui/highgui.hpp>
+
+using namespace cv;
+
+int g_ThresVal = 100;
+int g_ThresType = 1;
+
+Mat g_srcImage, g_dstImage, g_grayImage;
+
+static void on_Threshold(int, void*)
+{
+	threshold(g_grayImage, g_dstImage, g_ThresVal, 255, g_ThresType);
+	imshow("阈值化", g_dstImage);
+}
+
+int main()
+{
+	g_srcImage = imread("1.jpg");
+	cvtColor(g_srcImage, g_grayImage, COLOR_BGR2GRAY);
+
+	namedWindow("阈值化");
+	imshow("阈值化", g_srcImage);
+
+	createTrackbar("模式", "阈值化", &g_ThresType, 4, on_Threshold);
+	createTrackbar("阈值", "阈值化", &g_ThresVal, 255, on_Threshold);
+
+	on_Threshold(0, 0);
+
+	waitKey(0);
+}
