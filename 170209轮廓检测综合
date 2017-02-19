@@ -1,0 +1,51 @@
+#include<iostream>
+#include<opencv2/opencv.hpp>
+#include<opencv2/highgui/highgui.hpp>
+#include<opencv2/imgproc/imgproc.hpp>
+
+using namespace cv;
+using namespace std;
+
+Mat srcImage, dstImage, grayImage, drawing;
+vector<vector<Point>> contours;
+vector<Vec4i> hierarchy;
+int g_thersold = 100;
+int g_max = 254;
+
+static void on_contours(int, void*);
+
+int main()
+{
+	srcImage = imread("WIN_20170209_14_40_56_Pro.jpg");
+	if (!srcImage.data){ printf("imread failed"); };
+
+	namedWindow("原始图", WINDOW_AUTOSIZE);
+	namedWindow("轮廓图", WINDOW_AUTOSIZE);
+
+
+	cvtColor(srcImage, grayImage, COLOR_BGR2GRAY);
+	blur(grayImage, grayImage, Size(3, 3));
+
+
+	imshow("原始图", srcImage);
+		createTrackbar("阈值", "原始图", &g_thersold, g_max, on_contours);
+		on_contours(g_thersold, 0);
+	waitKey(0);
+	return 0;
+}
+
+void on_contours(int, void*)
+{
+	Canny(grayImage, dstImage, g_thersold, g_thersold * 2);
+	imshow("边缘", dstImage);
+	findContours(dstImage, contours, hierarchy, RETR_CCOMP, CHAIN_APPROX_SIMPLE);
+
+	drawing = Mat::zeros(srcImage.size(), CV_8UC3);
+	for (int i = 0; i < contours.size(); i++)
+	{
+		Scalar color = Scalar(255,0,0);
+		drawContours(drawing, contours, i, color, 1, 8, hierarchy);
+	}
+	imshow("轮廓图", drawing);
+	
+}
