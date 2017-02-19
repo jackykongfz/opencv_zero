@@ -1,0 +1,57 @@
+#include<iostream>
+#include<opencv2/imgproc/imgproc.hpp>
+#include<opencv2/highgui/highgui.hpp>
+
+using namespace std;
+using namespace cv;
+
+int g_contoursValue = 90;
+int g_maxValue = 254;
+Mat srcImage, grayImage, dstImage;
+vector<vector<Point>> g_vContours;
+vector<Vec4i> g_Hierarchy;
+
+static void on_Contours(int, void*);
+
+int main()
+{
+	srcImage = imread("WIN_20170209_14_40_56_Pro.jpg");
+	if (!srcImage.data){ printf("imread failed"); };
+
+	cvtColor(srcImage, grayImage, COLOR_BGR2GRAY);
+	blur(grayImage, grayImage, Size(3, 3));
+
+	namedWindow("原始图", WINDOW_AUTOSIZE);
+	imshow("原始图", srcImage);
+
+	createTrackbar("阈值", "原始图", &g_contoursValue, g_maxValue, on_Contours);
+	on_Contours(g_contoursValue, 0);
+
+	waitKey(0);
+	return 0;
+}
+
+void on_Contours(int, void*)
+{
+	threshold(grayImage, dstImage, g_contoursValue, 255, THRESH_BINARY);
+
+	findContours(dstImage, g_vContours, g_Hierarchy, RETR_CCOMP, 
+		CHAIN_APPROX_SIMPLE, Point(0, 0));
+
+	//遍历每个轮廓，寻找凸包
+	vector<vector<Point>> hull(g_vContours.size());
+	for (int i = 0; i < g_vContours.size(); i++)
+	{
+		convexHull(Mat(g_vContours[i]), hull[i], false);
+	}
+
+	//绘出轮廓及其凸包
+	Mat drawing = Mat::zeros(srcImage.size(), CV_8UC3);
+	for (int i = 0; i < g_vContours.size(); i++)
+	{
+		Scalar color = Scalar(rand() & 255, rand() & 255, rand() & 255);
+		drawContours(drawing, g_vContours, i, color, 1, 8, vector<Vec4i>(), 0, Point());
+		drawContours(drawing, hull, i, color, 1, 8, vector<Vec4i>(), 0, Point());
+	}
+	imshow("效果图", drawing);
+}
