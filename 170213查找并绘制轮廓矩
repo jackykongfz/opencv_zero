@@ -1,0 +1,97 @@
+#include<opencv2/opencv.hpp>
+#include<opencv2/imgproc/imgproc.hpp>
+#include<opencv2/highgui/highgui.hpp>
+#include<iostream>
+
+using namespace std;
+using namespace cv;
+
+void Try_contourArea();
+
+Mat srcImage, grayImage, dstImage,edges;
+int g_ThreshValue = 100;
+int g_MaxValue = 255;
+vector<vector<Point>> contours;
+vector<Vec4i> hierarchy;
+static void on_Thresh(int, void*);
+
+int main()
+{
+	//Try_contourArea();
+
+	srcImage = imread("WIN_20170209_14_40_56_Pro.jpg");
+	if (!srcImage.data){ printf("imread failed"); };
+
+	cvtColor(srcImage, grayImage, COLOR_BGR2GRAY);
+	blur(grayImage, grayImage, Size(3, 3));
+
+	namedWindow("原始图", WINDOW_AUTOSIZE);
+	namedWindow("效果图", WINDOW_AUTOSIZE);
+	imshow("原始图", srcImage);
+
+	createTrackbar("阈值", "原始图", &g_ThreshValue, g_MaxValue, on_Thresh);
+	on_Thresh(g_ThreshValue, 0);
+
+	waitKey(0);
+	return 0;
+}
+
+void on_Thresh(int, void*)
+{
+	Canny(grayImage, edges, g_ThreshValue, g_ThreshValue * 2);
+
+	findContours(edges, contours, hierarchy, RETR_TREE, CHAIN_APPROX_SIMPLE);
+
+	//计算矩
+	vector<Moments> mu(contours.size());
+	for (int i = 0; i < contours.size(); i++)
+	{
+		mu[i] = moments(contours[i]);
+	}
+
+	//计算中心矩
+	vector<Point2f> mc(contours.size());
+	for (int i = 0; i < contours.size(); i++)
+	{
+		mc[i] = Point2f(static_cast<float>(mu[i].m10 / mu[i].m00), static_cast<float>(mu[i].m01 / mu[i].m00));
+	}
+
+	Mat drawing = Mat::zeros(srcImage.size(), CV_8UC3);
+	for (int i = 0; i < contours.size(); i++)
+	{
+		Scalar color = Scalar(rand() & 255, rand() & 255, rand() & 255);
+		drawContours(drawing, contours, i, color, 2, 8, hierarchy, 0);
+		circle(drawing, mc[i], 4, color, -1);
+	}
+	imshow("效果图", drawing);
+
+	//通过m00计算轮廓面积并且和opencv函数比较
+	printf("\t 输出内容：面积和轮廓长度\n");
+	for (int i = 0; i < contours.size(); i++)
+	{
+		printf("通过M00计算出轮廓[%d]的面积：（M_00）= %.2f \n  opencv函数算出的面积 = %.2f ,长度 = %.2f \n\n", i, mu[i].m00,
+			contourArea(contours[i]),arcLength(contours[i],true));
+		Scalar color = Scalar(rand() & 255, rand() & 255, rand() & 255);
+		drawContours(drawing, contours, i, color, 2, 8, hierarchy, 0);
+		circle(drawing, mc[i], 4, color, -1, 8, 0);
+	}
+}
+
+void Try_contourArea()
+{
+
+	vector<Point> contours;
+	contours.push_back(Point2f(0,0));
+	contours.push_back(Point2f(10,0));
+	contours.push_back(Point2f(10,10));
+	contours.push_back(Point2f(0,11));
+
+	double area0 = contourArea(contours);
+	vector<Point> approx;
+	approxPolyDP(contours, approx, 5, true);
+	double area1 = contourArea(approx);
+
+	cout << area0 << endl;
+	cout << area1 << endl;
+	waitKey(0);
+}
