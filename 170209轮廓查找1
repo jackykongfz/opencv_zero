@@ -1,0 +1,44 @@
+#include<iostream>
+#include<opencv2/opencv.hpp>
+#include<opencv2\imgproc\imgproc.hpp>
+#include<opencv2/highgui/highgui.hpp>
+
+using namespace std;
+using namespace cv;
+
+Mat srcImage = imread("WIN_20170209_14_40_56_Pro.jpg",0);
+	Mat dstImage = Mat::zeros(srcImage.size(),CV_8UC3);
+	vector<vector<Point>> contours;
+	vector<Vec4i> hierarchy;	
+	int index = 0;
+	int g_Value = 100;
+
+	static void on_contours(int, void*);
+int main()
+{
+
+	if (!srcImage.data){ printf("imread failed"); };
+
+	namedWindow("阈值后", WINDOW_AUTOSIZE);
+	namedWindow("轮廓图", WINDOW_AUTOSIZE);
+
+	createTrackbar("阈值", "轮廓图", &g_Value, 255, on_contours);
+	on_contours(g_Value, 0);
+
+	waitKey(0);
+}
+
+void on_contours(int, void*)
+{
+	srcImage = srcImage > g_Value;
+	imshow("阈值后", srcImage);
+
+	findContours(srcImage, contours, hierarchy, RETR_CCOMP, CHAIN_APPROX_SIMPLE);
+
+	for (; index >= 0; index = hierarchy[index][0])
+	{
+		Scalar color(rand() & 255, rand() & 255, rand() & 255);
+		drawContours(dstImage, contours, index, color, FILLED, 8, hierarchy);
+	}
+	imshow("轮廓图", dstImage);
+}
