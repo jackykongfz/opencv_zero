@@ -1,0 +1,60 @@
+#include<opencv2/imgproc/imgproc.hpp>
+#include<opencv2/highgui/highgui.hpp>
+#include<opencv2/opencv.hpp>
+#include<iostream>
+
+using namespace std;
+using namespace cv;
+
+static void on_Hough(int, void*);
+
+int g_HoughVal2 = 100;
+int g_HoughVal1 = 100;
+int g_min = 0;
+int g_max = 0;
+
+	Mat srcImage = imread("2.png");
+Mat midImage, dstImage;
+int main()
+{
+
+	if (!srcImage.data){ printf("imread failed"); };
+
+	imshow("原始图", srcImage);
+	
+	//转为灰度并平滑处理
+
+	cvtColor(srcImage, midImage, CV_BGR2GRAY);
+	GaussianBlur(midImage, dstImage, Size(9, 9), 2, 2);
+	
+	namedWindow("效果图", WINDOW_AUTOSIZE);
+	imshow("1", dstImage);
+
+	//createTrackbar("param2", "效果图", &g_HoughVal2, 300,  on_Hough);
+	//createTrackbar("param1", "效果图", &g_HoughVal1, 300, on_Hough);
+	//createTrackbar("radius min", "效果图", &g_min, 300, on_Hough);
+	//createTrackbar("radius max", "效果图", &g_max, 300, on_Hough);
+	on_Hough(0, 0);
+
+	imshow("效果图", srcImage);
+
+	waitKey(0);
+
+	return 0;
+}
+
+void on_Hough(int, void*)
+{	
+	vector<Vec3f> circle1;
+	HoughCircles(dstImage, circle1, HOUGH_GRADIENT, 1, 1,  150, 250, 0, 0);//几个参数要不断试来实体感受
+
+	for (size_t i = 0; i < circle1.size(); i++)
+	{
+		Point center(circle1[i][0], circle1[i][1]);
+		double radius = circle1[i][2];
+		circle(srcImage, center, radius, Scalar(255, 0, 0),3);
+		printf("center = %f   %f\n", circle1[i][0], circle1[i][1]);
+		printf("radius = %f \n", radius);
+	}
+	imshow("效果图", srcImage);
+}
