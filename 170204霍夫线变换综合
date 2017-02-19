@@ -1,0 +1,92 @@
+#include<opencv2\opencv.hpp>
+#include<opencv2/imgproc/imgproc.hpp>
+#include<opencv2/highgui/highgui.hpp>
+#include<iostream>
+
+using namespace std;
+using namespace cv;
+
+//参数准备
+int g_HoughValue = 100;
+Mat g_srcImage, g_dstImage, g_midImage;
+vector<Vec4i> g_lines;//定义一个向量结构用于存放得到的线段向量集合
+
+static void on_Hough(int, void*);
+void staticHough();
+
+int main()
+{
+	g_srcImage = imread("5.jpg");
+	if (!g_srcImage.data){ printf("imread failed"); };
+
+	imshow("原始图", g_srcImage);
+	
+	cvtColor(g_srcImage, g_midImage, COLOR_BGR2GRAY);
+	Canny(g_midImage, g_dstImage, 10, 200);
+
+	namedWindow("效果图1", WINDOW_AUTOSIZE);
+	namedWindow("效果图2", WINDOW_AUTOSIZE);
+
+	imshow("效果图1", g_dstImage);
+
+	createTrackbar("值", "效果图2", &g_HoughValue, 200, on_Hough);
+	on_Hough(0, 0);
+
+
+	waitKey(0);
+	//staticHough();
+	//waitKey(0);
+}
+
+void on_Hough(int, void*)
+{
+	Mat dstImage = g_dstImage.clone();
+	Mat midImage = g_midImage.clone();
+
+	vector<Vec4i> mylines;
+	HoughLinesP(dstImage, mylines, 1, CV_PI / 180, g_HoughValue + 1, 50, 10);
+
+	for (size_t i = 0; i < mylines.size(); i++)
+	{
+		Vec4i l = mylines[i];
+		line(dstImage, Point(l[0], l[1]), Point(l[2], l[3]), Scalar(255, 255, 255), 1, LINE_8);
+	}
+	imshow("效果图2", dstImage);
+}
+
+
+//标准线变换
+void staticHough()
+{
+	g_srcImage = imread("箭头.png");
+	if (!g_srcImage.data){ printf("imread failed"); };
+
+	imshow("原始图", g_srcImage);
+	cvtColor(g_srcImage, g_midImage, COLOR_BGR2GRAY);	
+	Canny(g_midImage, g_dstImage, 100, 200);
+
+
+	imshow("效果图1", g_dstImage);
+	namedWindow("效果图1", WINDOW_AUTOSIZE);
+	namedWindow("效果图2", WINDOW_AUTOSIZE);
+
+
+	vector<Vec2f> lines;
+	HoughLines(g_dstImage, lines, 1, CV_PI / 180, 100, 0, 0);
+
+	for (size_t i = 0; i < lines.size(); i++)
+	{
+		float rho = lines[i][0], theta = lines[i][1];
+		Point p1, p2;
+		double a = cos(theta), b = sin(theta);
+		double x0 = a*rho, y0 = b*rho;
+		p1.x = cvRound(x0 + 1000 * (-b));
+		p1.y = cvRound(y0 + 1000 * (a));
+		p2.x = cvRound(x0 - 1000 * (-b));
+		p2.y = cvRound(y0 - 1000 * a);
+		line(g_srcImage, p1, p2, Scalar(0, 0, 255),1, LINE_AA);
+		//在彩色原图中输出线
+	}	
+	imshow("效果图2",g_srcImage);
+
+}
