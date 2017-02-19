@@ -1,0 +1,78 @@
+#include<opencv2/opencv.hpp>
+#include<opencv2/imgproc/imgproc.hpp>
+#include<opencv2/highgui/highgui.hpp>
+#include<iostream>
+
+using namespace std;
+using namespace cv;
+
+int main()
+{
+	Mat srcImage = imread("WIN_20170209_14_40_56_Pro.jpg");
+	if (!srcImage.data){ printf("imread failed"); };
+	imshow("原图", srcImage);
+
+	int dims = 1;
+	int bins = 256;
+	int hist_size[] = { bins };
+	float range[] = { 0, 256 };
+	const float *ranges[] = { range };
+	Mat redHist, greenHist, blueHist;
+
+
+	//计算直方图，红绿蓝	
+	int channels_red[] = { 0 };
+	calcHist(&srcImage, 1//有一个输入数组
+		,channels_red, Mat()//不使用掩膜
+		, redHist, dims, hist_size, ranges);
+
+	int channels_green[] = { 1 };
+	calcHist(&srcImage, 1//有一个输入数组
+		, channels_green, Mat()//不使用掩膜
+		, greenHist, dims, hist_size, ranges);
+
+	int channels_blue[] = { 2 };
+	calcHist(&srcImage, 1//有一个输入数组
+		, channels_blue, Mat()//不使用掩膜
+		, blueHist, dims, hist_size, ranges);
+
+	//绘制出三色直方图
+	//参数准备
+	double maxValue_red, maxValue_green, maxValue_blue;
+	minMaxLoc(redHist, 0, &maxValue_red);
+	minMaxLoc(greenHist, 0, &maxValue_green);
+	minMaxLoc(blueHist, 0, &maxValue_blue);
+	int hisHight = 256;
+	Mat histImage = Mat::zeros(hisHight, bins * 3, CV_8UC3);
+
+	//正式开始绘制
+	for (int i = 0; i < bins; i++)
+	{
+		//参数准备
+		float red_binValue = redHist.at<float>(i);
+		float green_binValue = greenHist.at<float>(i);
+		float blue_binValue = blueHist.at<float>(i);
+
+		int intensity_red = cvRound(red_binValue * hisHight / maxValue_red);
+		int intensity_green = cvRound(green_binValue * hisHight / maxValue_green);
+		int intensity_blue = cvRound(blue_binValue * hisHight / maxValue_blue);
+
+		//倒过来了。。。。。
+	//	rectangle(histImage, Point(i, 0), Point(i, intensity_red), Scalar(255, 0, 0));
+	//	rectangle(histImage, Point(i+bins, 0), Point(i+bins, intensity_green), Scalar(0, 255, 0));
+	//	rectangle(histImage, Point(i+bins*2, 0), Point(i+bins*2, intensity_blue), Scalar(0, 0, 255));
+
+		rectangle(histImage, Point(i, hisHight-1), Point(i,hisHight- intensity_red), Scalar(0, 0, 255));
+		rectangle(histImage, Point(i + bins, hisHight-1), Point(i + bins, hisHight- intensity_green), Scalar(0, 255, 0));
+		rectangle(histImage, Point(i + bins * 2, hisHight-1), Point(i + bins * 2, hisHight- intensity_blue), Scalar(255, 0, 0));
+
+         //用线也是一样的，上面只是用方块实现了画线
+	//	line(histImage, Point(i, hisHight - 1), Point(i, hisHight - intensity_red), Scalar(0, 0, 255));
+	//	line(histImage, Point(i + bins, hisHight - 1), Point(i + bins, hisHight - intensity_green), Scalar(0, 255, 0));
+	//	line(histImage, Point(i + bins * 2, hisHight - 1), Point(i + bins * 2, hisHight - intensity_blue), Scalar(255, 0, 0));
+	}
+	
+	imshow("直方图", histImage);
+	waitKey(0);
+	return 0;
+}
