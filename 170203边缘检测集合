@@ -1,0 +1,94 @@
+/*--------------------------------------------
+         边缘检测集合    
+==============================================*/
+
+#include<opencv2\opencv.hpp>
+#include<opencv2\imgproc\imgproc.hpp>
+#include<opencv2\highgui\highgui.hpp>
+
+using namespace cv;
+
+//全局变量声明
+Mat g_srcImage, g_grayImage, g_dstImage1,g_dstImage2,g_dstImage3;
+
+//Canny 参数准备
+int g_CannyValue = 1;//滑动条参数
+Mat g_CannyEdge;
+
+//Sobel参数准备
+int g_SobelValue = 1;//滑动条参数
+Mat g_SobelGradient_X, g_SobelGradient_Y;
+Mat g_SobelAbsGradient_x, g_SobelAbsGradient_Y;
+
+//Scharr参数准备
+Mat g_ScharrGradient_X, g_ScharrGradient_Y, 
+g_ScharrAbsGradient_X, g_ScharrAbsGradient_Y;
+
+//全局函数声明
+static void on_Canny(int, void*);
+static void on_Sobel(int, void*);
+void Scharr();
+
+int main()
+{
+	//载入图像
+	g_srcImage = imread("WIN_20170209_14_40_56_Pro.jpg");
+	if (!g_srcImage.data){ printf("imread failed"); };
+	
+	cvtColor(g_srcImage, g_grayImage, COLOR_BGR2GRAY);
+	//命名窗口
+	namedWindow("原图", WINDOW_AUTOSIZE);
+	imshow("原图", g_srcImage);
+	namedWindow("canny", WINDOW_AUTOSIZE);
+	namedWindow("Sobel", WINDOW_AUTOSIZE);
+	namedWindow("Scharr", WINDOW_AUTOSIZE);
+
+	createTrackbar("阈值", "canny", &g_CannyValue, 100, on_Canny);
+	createTrackbar("阈值X", "Sobel", &g_SobelValue, 3, on_Sobel);
+
+	on_Canny(0, 0);
+	on_Sobel(0, 0);
+
+	Scharr();
+
+	waitKey(0);
+}
+
+void on_Canny(int, void*)
+{
+
+	blur(g_grayImage, g_CannyEdge, Size(3, 3));
+
+	Canny(g_CannyEdge, g_CannyEdge, g_CannyValue, g_CannyValue * 3);
+
+	g_dstImage1 = Scalar::all(0);//先将这个图里所有元素设为0
+
+	g_grayImage.copyTo(g_dstImage1, g_CannyEdge);
+	imshow("canny", g_dstImage1);
+}
+
+void on_Sobel(int, void*)
+{
+	//X方向梯度
+	Sobel(g_srcImage, g_SobelGradient_X, CV_16S, 1, 0, (2 * g_SobelValue + 1), 1, 1, BORDER_DEFAULT);
+	convertScaleAbs(g_SobelGradient_X, g_SobelAbsGradient_x);
+
+	//y方向梯度
+	Sobel(g_srcImage, g_SobelGradient_Y, CV_16S, 1, 0, (2 * g_SobelValue + 1), 1, 1, BORDER_DEFAULT);
+	convertScaleAbs(g_SobelGradient_Y, g_SobelAbsGradient_Y);
+
+	addWeighted(g_SobelAbsGradient_x, 0.5, g_SobelAbsGradient_Y, 0.5, 0, g_dstImage2);
+	imshow("Sobel", g_SobelAbsGradient_x);
+}
+
+void Scharr()
+{
+	Scharr(g_srcImage, g_ScharrGradient_X, CV_16S, 1, 0, 1, 0, BORDER_DEFAULT);
+	convertScaleAbs(g_ScharrGradient_X, g_ScharrAbsGradient_X);
+
+	Scharr(g_srcImage, g_ScharrGradient_Y, CV_16S, 1, 0, 1, 0, BORDER_DEFAULT);
+	convertScaleAbs(g_ScharrGradient_Y, g_ScharrAbsGradient_Y);
+
+	addWeighted(g_ScharrAbsGradient_X, 0.5, g_SobelAbsGradient_Y, 0.5, 0, g_dstImage3);
+	imshow("Scharr", g_dstImage3);
+}
