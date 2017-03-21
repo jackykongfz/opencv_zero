@@ -1,0 +1,349 @@
+#include<opencv2\opencv.hpp>
+#include<opencv2/highgui/highgui.hpp>
+#include<opencv2/imgproc/imgproc.hpp>
+#include<opencv2\core\core.hpp>
+#include<iostream>
+
+using namespace cv;
+using namespace std;
+
+IplImage* rotateImage2(IplImage* img, int degree);
+void Denoising(IplImage* src);
+void Face(Mat &img,Mat &dst);
+void detectAndDraw(Mat& img,Mat &dst, CascadeClassifier& cascade,
+	CascadeClassifier& nestedCascade,
+	double scale, bool tryflip);
+
+Mat dstImageMat,dstImageMat2,srcImage1,srcImage2,tempImage,resultImage,map_x,map_y;
+int modianx, modiany;
+
+int main()
+{
+	//读入MP4文件,按p暂停，暂停后按k读入第一张图片
+	CvCapture * capture1 = cvCreateFileCapture("WIN_20170320_17_13_39_Pro.mp4"),
+		*capture2 = cvCreateFileCapture("WIN_20170320_17_13_39_Pro.mp4");  //生成一个指向视频文件的结构体指针
+
+	cvNamedWindow("example", CV_WINDOW_AUTOSIZE);                  //定义窗口
+	cvNamedWindow("图1", CV_WINDOW_AUTOSIZE);
+	cvNamedWindow("图2", CV_WINDOW_AUTOSIZE);
+	cvNamedWindow("视频", CV_WINDOW_AUTOSIZE);
+	IplImage* frame1=NULL,*frame0=NULL,*dstImage1=NULL,*dstImage2=NULL;											//声明一个图像结构提取指针数组
+	//读取两张图片
+
+		while (1)
+		{
+			frame0 = cvQueryFrame(capture1);                          //抓取帧
+			if (!frame0)break;
+			cvShowImage("example", frame0);                          //显示
+			char c = cvWaitKey(33);
+			if (c == 'p' || c == 'P')//暂停
+			{
+				char d = waitKey(0);
+				if (d == 'k' || d == 'K')//读图
+				{
+					break;
+				}
+			}
+		}
+
+		while (1)
+		{
+			frame1 = cvQueryFrame(capture2);                          //抓取帧
+			if (!frame1)break;
+			cvShowImage("example", frame1);                          //显示
+			char c = cvWaitKey(33);
+			if (c == 'p' || c == 'P')//暂停
+			{
+				char d = waitKey(0);
+				if (d == 'k' || d == 'K')//读图
+				{
+					cvShowImage("图2", frame1);
+					break;
+				}
+			}
+		}
+
+																		//显示提取的两张图片
+	cvShowImage("图1", frame0);
+	cvShowImage("图2", frame1);
+	waitKey(0);
+
+																			//图像灰度转换
+	dstImage1 = cvCreateImage(cvGetSize(frame0), IPL_DEPTH_8U, 1);
+	dstImage2 = cvCreateImage(cvGetSize(frame0), IPL_DEPTH_8U, 1);
+	cvCvtColor(frame0, dstImage1, CV_BGR2GRAY);
+	cvCvtColor(frame1, dstImage2, CV_BGR2GRAY);
+
+																					//初始化图像
+	CvMat * secnumImage = cvCreateMat(frame0->height, frame0->width, CV_32FC1);
+
+																						//绝对值计算
+	CvMat * pBkMat = cvCreateMat(frame0->height, frame0->width, CV_32FC1);
+	CvMat * pFrMat = cvCreateMat(frame1->height, frame1->width, CV_32FC1);
+	cvConvert(dstImage1, pBkMat);
+	cvConvert(dstImage2, pFrMat);
+	cvAbsDiff(pBkMat, pFrMat, secnumImage);
+
+																					 //二值化图像
+	cvConvert(secnumImage, dstImage1);
+
+	cvThreshold(dstImage1, dstImage1, 20, 255, CV_THRESH_BINARY);
+
+	//cvShowImage("效果图1", dstImage1);
+	
+	                                                                           //总算找到了IPLIMAGE转换为Mat的方法了，白干了一晚上
+
+	dstImageMat = cvarrToMat(dstImage1, 1);										//将三张图转化为Mat格式
+	srcImage1 = cvarrToMat(frame0, 1);
+	srcImage2 = cvarrToMat(frame1, 1);
+	
+/*	srcImage1 = imread("2.png", 1);
+	srcImage2 = imread("3.png", 1);
+	Mat grayImage1, grayImage2;
+	cvtColor(srcImage1, grayImage1, COLOR_BGR2GRAY);
+	cvtColor(srcImage2, grayImage2, COLOR_BGR2GRAY);
+	absdiff(grayImage1, grayImage2, dstImageMat);*/
+
+	GaussianBlur(dstImageMat, dstImageMat, Size(5, 5), 0, 0);
+	//降噪
+	//Denoising(dstImage1);	
+	Mat element = getStructuringElement(MORPH_RECT, Size(17, 17));				//17是试出来比较好的数
+	threshold(dstImageMat, dstImageMat, 20, 255, THRESH_BINARY);				//二值化
+	morphologyEx(dstImageMat, dstImageMat,MORPH_OPEN, element);					//开运算
+
+																				//用轮廓来定位，通过举高的那只手的最高点进行定位
+	for (int i = 0; i < dstImageMat.rows ; i++)
+	{	
+		uchar*data = dstImageMat.ptr<uchar>(i);									//获取第i行首地址
+		for (int j = 0; j < dstImageMat.cols * dstImageMat.channels(); j++)
+		{
+
+			if (data[j] != 0)
+			{
+				rectangle(srcImage2, Rect(j-30, i, 60, 240),					//这个矩形的数值是试出来的，比较贴合手臂的面积
+					Scalar(255, 255, 255), 2);
+				printf("%d,%d\n", i, j);
+				modianx = j;
+				modiany = i;
+				tempImage = srcImage2(Rect(j - 30, i, 60, 240));
+				goto show;
+			}
+		}
+	}
+
+
+show:
+	//重映射操作
+	map_x.create(tempImage.size(), CV_32FC1);
+	map_y.create(tempImage.size(), CV_32FC1);
+	for (int j = 0; j < tempImage.rows; j++)
+	{
+		for (int i = 0; i < tempImage.cols; i++)
+		{																	//将图片上下左右翻转
+			map_x.at<float>(j, i) = static_cast<float>(tempImage.cols - i);
+			map_y.at<float>(j, i) = static_cast<float>(tempImage.rows - j);
+		}
+	}
+	remap(tempImage, tempImage, map_x, map_y, INTER_LINEAR, BORDER_CONSTANT, Scalar(0, 0, 0));
+
+
+
+	
+//	cvShowImage("模板图", rotateImage2(temp1, -90));//显示模板转换过后的图片
+	imwrite("模板图.jpg", tempImage);
+	imshow("二值图", dstImageMat);	
+	imshow("原图", srcImage2);
+
+	//waitKey(0);*/
+		
+	double minValue[90], maxValue[90];
+	Point maxLocation[90],minLocation[90];
+//	tempImage = imread("模板图.jpg", 1);
+//	CvCapture * capture1 = cvCreateFileCapture("WIN_20170320_17_13_39_Pro.mp4");
+//	IplImage* frame0 = NULL;
+	IplImage tempip(tempImage);						//这里是将匹配模板转换为IPLIMAGE格式图片
+	IplImage* temp1;
+	temp1 = &tempip;
+//	Mat maxtempImage;
+//	tempImage.copyTo(maxtempImage);
+	cvNamedWindow("视频", WINDOW_AUTOSIZE);
+	while (1)
+	{
+		double t = (double)getTickCount();
+		// do something ...返回该处代码执行所耗的时间，单位为秒	
+		frame0 = cvQueryFrame(capture1);                          //抓取帧
+			if (!frame0)break;		
+
+
+		for (int i = 0; i < 1; i++)
+		{
+
+			dstImageMat2 = cvarrToMat(frame0);//转换图片格式
+		//	dstImageMat2 = dstImageMat2(Rect(modianx-100, modiany, 600, 400));
+		//初始化用于结果输出的矩阵
+		tempImage = cvarrToMat(rotateImage2(temp1,i+90), 1);
+		int resultImage_cols = dstImageMat2.cols - dstImageMat2.cols + 1;
+		int resultImage_rows = dstImageMat2.rows - dstImageMat2.rows + 1;
+		resultImage.create(resultImage_rows, resultImage_cols, CV_32FC1);
+
+		//进行匹配和标准化
+		matchTemplate(dstImageMat2, tempImage, resultImage, TM_CCOEFF_NORMED);
+		normalize(resultImage, resultImage, 0, 1, NORM_MINMAX, -1, Mat());
+
+		//通过函数minmaxloc 定位最匹配的位置
+
+		minMaxLoc(resultImage, &minValue[i], &maxValue[i], &minLocation[i], &maxLocation[i],Mat());
+		printf("%d,%d\t", maxLocation[0].x,maxLocation[0].y);
+		if (maxValue[i] > maxValue[0])
+		{
+			maxLocation[0] = maxLocation[i];
+	//		maxtempImage = tempImage;
+		}
+            
+		}		
+		//绘制出矩形
+		cvRectangle(frame0, maxLocation[0], Point(maxLocation[0].x + tempImage.cols,
+		maxLocation[0].y + tempImage.rows),
+		Scalar(255, 255, 255), 2, 8, 0);	
+		t = ((double)getTickCount() - t) / getTickFrequency();
+	
+		cvShowImage("视频", frame0);
+		imshow("识别范围", dstImageMat2);
+		imshow("模板图", tempImage);
+		
+		char f = cvWaitKey(0);
+		if (f == 'q' || f == 'Q')
+		{
+			break;
+		}
+	}
+
+
+
+	//Face(srcImage2);
+	
+	waitKey(0);
+
+	cvDestroyWindow("图1");
+	cvDestroyWindow("图2");
+
+//	cvReleaseCapture(&capture1);
+	cvDestroyWindow("example");
+
+	/*IplImage* srcImage = cvLoadImage("1.png", 0);
+	cvShowImage("原始图", srcImage);
+	Denoising(srcImage);
+	cvShowImage("效果图", srcImage);
+	waitKey(0);*/
+	
+	//人脸识别定位实验
+	/*
+	Mat srcImage = imread("2.png", 1);
+	Face(srcImage,srcImage);
+	imshow("人脸图", srcImage);
+	waitKey(0);
+	*/
+
+}
+
+//降噪处理
+void Denoising(IplImage* src)
+{
+	IplConvKernel* element = cvCreateStructuringElementEx(10, 10, 5, 5, CV_SHAPE_ELLIPSE);
+//	Mat element = getStructuringElement(MORPH_RECT, Size(10, 10));
+	cvErode(src, src, element);
+}
+
+IplImage* rotateImage2(IplImage* img, int degree)							//用C写的旋转图像的函数
+{
+	double angle = degree  * CV_PI / 180.;
+	double a = sin(angle), b = cos(angle);
+	int width = img->width, height = img->height;
+	//旋转后的新图尺寸  
+	int width_rotate = int(height * fabs(a) + width * fabs(b));
+	int height_rotate = int(width * fabs(a) + height * fabs(b));
+	IplImage* img_rotate = cvCreateImage(cvSize(width_rotate, height_rotate), img->depth, img->nChannels);
+	cvZero(img_rotate);
+	//保证原图可以任意角度旋转的最小尺寸  
+	int tempLength = sqrt((double)width * width + (double)height *height) + 10;
+	int tempX = (tempLength + 1) / 2 - width / 2;
+	int tempY = (tempLength + 1) / 2 - height / 2;
+	IplImage* temp = cvCreateImage(cvSize(tempLength, tempLength), img->depth, img->nChannels);
+	cvZero(temp);
+	//将原图复制到临时图像tmp中心  
+	cvSetImageROI(temp, cvRect(tempX, tempY, width, height));
+	cvCopy(img, temp, NULL);
+	cvResetImageROI(temp);
+	//旋转数组map  
+	// [ m0  m1  m2 ] ===>  [ A11  A12   b1 ]  
+	// [ m3  m4  m5 ] ===>  [ A21  A22   b2 ]  
+	float m[6];
+	int w = temp->width;
+	int h = temp->height;
+	m[0] = b;
+	m[1] = a;
+	m[3] = -m[1];
+	m[4] = m[0];
+	// 将旋转中心移至图像中间    
+	m[2] = w * 0.5f;
+	m[5] = h * 0.5f;
+	CvMat M = cvMat(2, 3, CV_32F, m);
+	cvGetQuadrangleSubPix(temp, img_rotate, &M);
+	cvReleaseImage(&temp);
+	return img_rotate;
+}
+
+/*void Face(Mat &img,Mat &dst)
+{
+	CascadeClassifier cascade, nestedCascade;
+	bool stop = false;
+	//训练好的文件名称，放置在可执行文件同目录下
+	cascade.load("haarcascade_upperbody.xml");
+	//nestedCascade.load("haarcascade_upperbody.xml");
+	detectAndDraw(img,dst, cascade, nestedCascade, 1, 0);
+}
+
+void detectAndDraw(Mat& img, Mat &dst,CascadeClassifier& cascade,
+	CascadeClassifier& nestedCascade,
+	double scale, bool tryflip)
+{
+	int i = 0;
+	double t = 0;
+	//建立用于存放人脸的向量容器
+	vector<Rect> faces, faces2;
+
+	//建立缩小的图片，加快检测速度
+	//nt cvRound (double value) 对一个double型的数进行四舍五入，并返回一个整型数！
+	Mat gray, smallImg(cvRound(img.rows / scale), cvRound(img.cols / scale), CV_8UC1);
+	//转成灰度图像，Harr特征基于灰度图
+	cvtColor(img, gray, CV_BGR2GRAY);
+	//改变图像大小，使用双线性差值
+	resize(gray, smallImg, smallImg.size(), 0, 0, INTER_LINEAR);
+	//变换后的图像进行直方图均值化处理
+	equalizeHist(smallImg, smallImg);
+
+	//程序开始和结束插入此函数获取时间，经过计算求得算法执行时间
+	t = (double)cvGetTickCount();
+	//检测人脸
+	//detectMultiScale函数中smallImg表示的是要检测的输入图像为smallImg，faces表示检测到的人脸目标序列，1.1表示
+	//每次图像尺寸减小的比例为1.1，2表示每一个目标至少要被检测到3次才算是真的目标(因为周围的像素和不同的窗口大
+	//小都可以检测到人脸),CV_HAAR_SCALE_IMAGE表示不是缩放分类器来检测，而是缩放图像，Size(30, 30)为目标的
+	//最小最大尺寸
+	cascade.detectMultiScale(smallImg, faces,
+		1.1, 2, 0
+		//|CV_HAAR_FIND_BIGGEST_OBJECT
+		//|CV_HAAR_DO_ROUGH_SEARCH
+		| CV_HAAR_SCALE_IMAGE
+		,
+		Size(30, 30));
+	for (int i = 0; i < faces.size(); i++)
+	{
+		if ((faces[0].height * faces[0].width) < (faces[i].height *faces[i].width))
+		{
+			faces[0] = faces[i];
+		}
+		rectangle(dst, faces[i], Scalar(0, 255, 255), 2);
+	}
+
+	cv::imshow("result", dst);
+}*/
