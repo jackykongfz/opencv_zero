@@ -13,9 +13,13 @@ void Face(Mat &img,Mat &dst);
 void detectAndDraw(Mat& img,Mat &dst, CascadeClassifier& cascade,
 	CascadeClassifier& nestedCascade,
 	double scale, bool tryflip);
+void matchAndDraw(Mat img, Mat temp, int degree);
 
-Mat dstImageMat,dstImageMat2,srcImage1,srcImage2,tempImage,resultImage,map_x,map_y;
-int modianx, modiany;
+Mat dstImageMat,dstImageMat2,srcImage1,srcImage2,tempImage,resultImage,map_x,map_y,tempImageleft,tempImageright;
+int modianx, modiany,maxDegree=0;
+double minValue[90], maxValue[90];
+Point maxLocation[90],minLocation[90];	
+IplImage* frame1=NULL,*frame0=NULL,*dstImage1=NULL,*dstImage2=NULL;	
 
 int main()
 {
@@ -27,7 +31,7 @@ int main()
 	cvNamedWindow("图1", CV_WINDOW_AUTOSIZE);
 	cvNamedWindow("图2", CV_WINDOW_AUTOSIZE);
 	cvNamedWindow("视频", CV_WINDOW_AUTOSIZE);
-	IplImage* frame1=NULL,*frame0=NULL,*dstImage1=NULL,*dstImage2=NULL;											//声明一个图像结构提取指针数组
+										//声明一个图像结构提取指针数组
 	//读取两张图片
 
 		while (1)
@@ -141,27 +145,26 @@ show:
 		for (int i = 0; i < tempImage.cols; i++)
 		{																	//将图片上下左右翻转
 			map_x.at<float>(j, i) = static_cast<float>(tempImage.cols - i);
-			map_y.at<float>(j, i) = static_cast<float>(tempImage.rows - j);
+			map_y.at<float>(j, i) = static_cast<float>( j);
 		}
 	}
-	remap(tempImage, tempImage, map_x, map_y, INTER_LINEAR, BORDER_CONSTANT, Scalar(0, 0, 0));
+	remap(tempImage, tempImageright, map_x, map_y, INTER_LINEAR, BORDER_CONSTANT, Scalar(0, 0, 0));
 
 
 
 	
 //	cvShowImage("模板图", rotateImage2(temp1, -90));//显示模板转换过后的图片
-	imwrite("模板图.jpg", tempImage);
+//	imwrite("模板图.jpg", tempImage);
 	imshow("二值图", dstImageMat);	
 	imshow("原图", srcImage2);
 
 	//waitKey(0);*/
 		
-	double minValue[90], maxValue[90];
-	Point maxLocation[90],minLocation[90];
+
 //	tempImage = imread("模板图.jpg", 1);
 //	CvCapture * capture1 = cvCreateFileCapture("WIN_20170320_17_13_39_Pro.mp4");
 //	IplImage* frame0 = NULL;
-	IplImage tempip(tempImage);						//这里是将匹配模板转换为IPLIMAGE格式图片
+	IplImage tempip(tempImageright);						//这里是将匹配模板转换为IPLIMAGE格式图片
 	IplImage* temp1;
 	temp1 = &tempip;
 //	Mat maxtempImage;
@@ -173,15 +176,16 @@ show:
 		// do something ...返回该处代码执行所耗的时间，单位为秒	
 		frame0 = cvQueryFrame(capture1);                          //抓取帧
 			if (!frame0)break;		
+		dstImageMat2 = cvarrToMat(frame0);//转换图片格式
+			//开始匹配并绘出手臂方框
 
-
-		for (int i = 0; i < 1; i++)
+/*		for (int i = 0; i < 1; i++)
 		{
 
-			dstImageMat2 = cvarrToMat(frame0);//转换图片格式
+
 		//	dstImageMat2 = dstImageMat2(Rect(modianx-100, modiany, 600, 400));
 		//初始化用于结果输出的矩阵
-		tempImage = cvarrToMat(rotateImage2(temp1,i+90), 1);
+		tempImageright = cvarrToMat(rotateImage2(temp1,90), 1);
 		int resultImage_cols = dstImageMat2.cols - dstImageMat2.cols + 1;
 		int resultImage_rows = dstImageMat2.rows - dstImageMat2.rows + 1;
 		resultImage.create(resultImage_rows, resultImage_cols, CV_32FC1);
@@ -205,6 +209,9 @@ show:
 		cvRectangle(frame0, maxLocation[0], Point(maxLocation[0].x + tempImage.cols,
 		maxLocation[0].y + tempImage.rows),
 		Scalar(255, 255, 255), 2, 8, 0);	
+	*/
+
+
 		t = ((double)getTickCount() - t) / getTickFrequency();
 	
 		cvShowImage("视频", frame0);
@@ -213,8 +220,11 @@ show:
 		
 		char f = cvWaitKey(0);
 		if (f == 'q' || f == 'Q')
-		{
-			break;
+		{	
+			matchAndDraw(dstImageMat2, tempImage,0);
+		 //   matchAndDraw(dstImageMat2, tempImage,90);
+			
+			waitKey(0);
 		}
 	}
 
@@ -291,6 +301,84 @@ IplImage* rotateImage2(IplImage* img, int degree)							//用C写的旋转图像
 	cvGetQuadrangleSubPix(temp, img_rotate, &M);
 	cvReleaseImage(&temp);
 	return img_rotate;
+}
+
+void matchAndDraw(Mat img, Mat temp,int degree)
+{	
+	img = img(Rect(modianx - 200, modiany, 600, 400));
+	IplImage tempip2(img);						//这里是将原图转换为IPLIMAGE格式图片
+		IplImage* temp2;
+		temp2 = &tempip2;
+	for (int i = 0; i < 75; i++)//右臂只能转到75，左臂90
+	{
+
+		//dstImageMat2 = cvarrToMat(frame0);//转换图片格式
+		//	dstImageMat2 = dstImageMat2(Rect(modianx-100, modiany, 600, 400));
+		//初始化用于结果输出的矩阵
+
+		img = cvarrToMat( rotateImage2(temp2, -i-degree));//左臂用i，右臂用-i
+
+		int resultImage_cols = img.cols - temp.cols + 1;
+		int resultImage_rows = img.rows - temp.rows + 1;
+		resultImage.create(resultImage_rows, resultImage_cols, CV_32FC1);
+
+		//进行匹配和标准化
+		matchTemplate(img, temp, resultImage, TM_CCOEFF_NORMED);
+		//normalize(resultImage, resultImage, 0, 1, NORM_MINMAX, -1, Mat());
+
+		//通过函数minmaxloc 定位最匹配的位置
+
+		minMaxLoc(resultImage, &minValue[i], &maxValue[i], &minLocation[i], &maxLocation[i], Mat());
+
+		if (maxValue[i] > maxValue[0])
+		{
+			maxLocation[0] = maxLocation[i];
+			maxDegree = -i;
+			//		maxtempImage = tempImage;
+		}
+		printf("%d,%d,%d\t", maxLocation[0].x, maxLocation[0].y, maxDegree);
+		rectangle(img, maxLocation[0], Point(maxLocation[0].x + temp.cols,
+			maxLocation[0].y + temp.rows),
+			Scalar(255, 255, 255), 2, 8, 0);
+		if (degree != 0)
+		{		
+			break;
+		}
+
+
+		//waitKey(0);
+	} 
+	img = cvarrToMat(rotateImage2(temp2, maxDegree));
+	rectangle(img, maxLocation[0], Point(maxLocation[0].x + temp.cols,
+		maxLocation[0].y + temp.rows),
+		Scalar(255, 255, 255), 2, 8, 0);
+
+//	imshow("模板图2", temp);
+	imshow("旋转图", img);
+
+
+//把图像旋转成正常图像
+	IplImage tempip3(img);						//这里是将原图转换为IPLIMAGE格式图片
+	IplImage* temp3;
+	temp3 = &tempip3;
+
+	img = cvarrToMat(rotateImage2(temp3, -maxDegree));
+	imshow("kk", img);
+/*	for (int i = 0; i < img.rows; i++)
+	{
+		uchar*data = img.ptr<uchar>(i);									//获取第i行首地址
+		for (int j = 0; j < img.cols * img.channels(); j++)
+		{
+
+			if (data[j] != 0)
+			{
+				img = img(Rect(j, i, 600, 400));
+			}
+		}
+	}
+	imshow("最终图", img);*/
+//绘制出矩形
+
 }
 
 /*void Face(Mat &img,Mat &dst)
